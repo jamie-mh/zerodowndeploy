@@ -57,7 +57,7 @@ jobs:
           cat >>~/.ssh/config <<END
           Host remote
               HostName ${{ secrets.DEPLOY_HOST }}
-              User ${{ secrets.DEPLOY_USER }}
+              User deploy
               IdentityFile ~/.ssh/deploy.key
               StrictHostKeyChecking no
               ControlMaster auto
@@ -71,30 +71,29 @@ jobs:
               export DOCKER_HOST=ssh://remote
               echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
+              # Deploy current tag
               sed -i 's/zerodowndeploy:latest/zerodowndeploy:${{ github.ref_name }}/' compose.yaml   
-          }
 
-          pull() {
               docker compose pull
-              docker compose up -d
+              docker compose up -d --no-recreate
           }
 
           route_traffic() {
               echo "Routing traffic to $1"
               
               case $1 in
-                  "a")
-                      upstreams='[{"dial":"zerodowndeploy-a:8000"}]'
+                  "blue")
+                      upstreams='[{"dial":"zerodowndeploy-blue:8000"}]'
                   ;;
-                  "b")
-                      upstreams='[{"dial":"zerodowndeploy-b:8000"}]'
+                  "green")
+                      upstreams='[{"dial":"zerodowndeploy-green:8000"}]'
                   ;;
-                  "ab")
-                      upstreams='[{"dial":"zerodowndeploy-a:8000"},{"dial":"zerodowndeploy-b:8000"}]'
+                  "bluegreen")
+                      upstreams='[{"dial":"zerodowndeploy-blue:8000"},{"dial":"zerodowndeploy-green:8000"}]'
                   ;;
               esac
               
-              docker compose exec caddy curl \
+              docker compose exec zerodowndeploy-caddy curl \
                   -H "Content-Type: application/json" \
                   -d "$upstreams" \
                   -X PATCH http://localhost:2019/config/apps/http/servers/srv0/routes/0/handle/0/upstreams
@@ -102,18 +101,14 @@ jobs:
 
           restart() {
               echo "Restarting $1"
-              container=zerodowndeploy-$1
-              
-              if ! docker compose down "$container" ; then
-                  echo "Failed to stop $1"
-              fi
-
+              container="zerodowndeploy-$1"
+              docker compose down "$container"
               docker compose up -d "$container"
           }
 
           wait_healthy() {
               echo "Waiting for $1 to be healthy"
-              container=zerodowndeploy-$1
+              container="zerodowndeploy-$1"
                   
               if docker compose exec "$container" \
                   curl -I --retry 30 --retry-max-time 0 --retry-all-errors --fail-with-body http://localhost:8000/health
@@ -130,19 +125,18 @@ jobs:
           }
 
           prepare
-          pull
 
-          route_traffic b
+          route_traffic green
           sleep 10
 
-          restart a
-          wait_healthy a
-          route_traffic a
+          restart blue
+          wait_healthy blue
+          route_traffic blue
           sleep 10
 
-          restart b
-          wait_healthy b
-          route_traffic ab
+          restart green
+          wait_healthy green
+          route_traffic bluegreen
 
           cleanup
 

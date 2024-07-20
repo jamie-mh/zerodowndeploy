@@ -1,6 +1,6 @@
 services:
-  app-a: &app
-    container_name: zerodowndeploy-a
+  zerodowndeploy-blue: &app
+    container_name: zerodowndeploy-blue
     image: ghcr.io/jamie-mh/zerodowndeploy:latest
     restart: always
     networks:
@@ -13,12 +13,12 @@ services:
       start_interval: 10s
       start_period: 30s
 
-  app-b:
+  zerodowndeploy-green:
     <<: *app
-    container_name: zerodowndeploy-b
+    container_name: zerodowndeploy-green
 
-  caddy:
-    container_name: caddy
+  zerodowndeploy-caddy:
+    container_name: zerodowndeploy-caddy
     image: ghcr.io/jamie-mh/zerodowndeploy-caddy:latest
     restart: always
     ports:
