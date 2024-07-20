@@ -1,7 +1,7 @@
 services:
   app-a: &app
     container_name: zerodowndeploy-a
-    image: zerodowndeploy:latest
+    image: ghcr.io/jamie-mh/zerodowndeploy:latest
     restart: always
     networks:
       - zerodowndeploy
@@ -19,7 +19,7 @@ services:
 
   caddy:
     container_name: caddy
-    image: zerodowndeploy-caddy:latest
+    image: ghcr.io/jamie-mh/zerodowndeploy-caddy:latest
     restart: always
     ports:
       - 8083:8083
