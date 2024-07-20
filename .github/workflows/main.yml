@@ -1,0 +1,92 @@
+name: Build and Deploy
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push app image
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          context: .
+          file: app.Dockerfile 
+          tags: ghcr.io/jamie-mh/zerodowndeploy:latest,ghcr.io/jamie-mh/zerodowndeploy:${{ github.ref_name }}
+
+      - name: Build and push Caddy image
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          context: .
+          file: caddy.Dockerfile
+          tags: ghcr.io/jamie-mh/zerodowndeploy-caddy:latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up SSH
+        run: |
+          mkdir ~/.ssh
+          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy.key
+          chmod 700 ~/.ssh
+          chmod 600 ~/.ssh/deploy.key
+
+          cat >>~/.ssh/config <<END
+          Host remote
+              HostName ${{ secrets.DEPLOY_HOST }}
+              User ${{ secrets.DEPLOY_USER }}
+              IdentityFile ~/.ssh/deploy.key
+              StrictHostKeyChecking no
+              ControlMaster auto
+              ControlPath ~/.ssh/control-%C
+              ControlPersist yes
+          END
+
+      - name: Deploy
+        run: |
+          sed -i 's/zerodowndeploy:latest/zerodowndeploy:${{ github.ref_name }}/' compose.yaml   
+
+          export DOCKER_HOST=ssh://remote
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+          docker compose pull
+          ./ci/deploy.sh
+          docker image prune -f
+
+  clean:
+    runs-on: ubuntu-latest
+    needs: deploy
+
+    steps:
+      - name: Delete old images
+        uses: snok/container-retention-policy@v3.0.0
+        with:
+          account: user
+          token: ${{ secrets.PAT }}
+          image-names: "zerodowndeploy*"
+          image-tags: "!latest v*"
+          cut-off: 2d
+          keep-n-most-recent: 3

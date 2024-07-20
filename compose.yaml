@@ -1,0 +1,23 @@
+services:
+  app-a: &app
+    container_name: app-a
+    image: zerodowndeploy:latest
+    restart: always
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_interval: 10s
+      start_period: 30s
+
+  app-b:
+    <<: *app
+    container_name: app-b
+
+  caddy:
+    container_name: caddy
+    image: zerodowndeploy-caddy:latest
+    restart: always
+    ports:
+      - 8080:8080
