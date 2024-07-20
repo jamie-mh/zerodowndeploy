@@ -7,13 +7,13 @@ route_traffic() {
     
     case $1 in
         "a")
-            upstreams='[{"dial":"app-a:8000"}]'
+            upstreams='[{"dial":"zerodowndeploy-a:8000"}]'
         ;;
         "b")
-            upstreams='[{"dial":"app-b:8000"}]'
+            upstreams='[{"dial":"zerodowndeploy-b:8000"}]'
         ;;
         "ab")
-            upstreams='[{"dial":"app-a:8000"},{"dial":"app-b:8000"}]'
+            upstreams='[{"dial":"zerodowndeploy-a:8000"},{"dial":"zerodowndeploy-b:8000"}]'
         ;;
     esac
     
@@ -25,14 +25,14 @@ route_traffic() {
 
 restart() {
     echo "Restarting $1"
-    container=app-$1
+    container=zerodowndeploy-$1
     docker compose down "$container"
     docker compose up -d "$container"
 }
 
 wait_healthy() {
     echo "Waiting for $1 to be healthy"
-    container=app-$1
+    container=zerodowndeploy-$1
         
     if docker compose exec "$container" \
         curl -I --retry 30 --retry-max-time 0 --retry-all-errors --fail-with-body http://localhost:8000/health

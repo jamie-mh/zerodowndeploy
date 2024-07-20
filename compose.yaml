@@ -1,6 +1,6 @@
 services:
   app-a: &app
-    container_name: app-a
+    container_name: zerodowndeploy-a
     image: zerodowndeploy:latest
     restart: always
     networks:
@@ -15,7 +15,7 @@ services:
 
   app-b:
     <<: *app
-    container_name: app-b
+    container_name: zerodowndeploy-b
 
   caddy:
     container_name: caddy
