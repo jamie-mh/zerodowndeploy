@@ -73,7 +73,10 @@ jobs:
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
           docker compose pull
+          docker compose up -d
+
           ./ci/deploy.sh
+
           docker image prune -f
 
   clean:
