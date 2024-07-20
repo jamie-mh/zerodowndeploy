@@ -3,6 +3,8 @@ services:
     container_name: app-a
     image: zerodowndeploy:latest
     restart: always
+    networks:
+      - zerodowndeploy
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
       interval: 30s
@@ -21,3 +23,9 @@ services:
     restart: always
     ports:
       - 8080:8080
+    networks:
+      - zerodowndeploy
+
+networks:
+  zerodowndeploy:
+    driver: bridge
