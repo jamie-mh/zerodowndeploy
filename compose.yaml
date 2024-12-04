@@ -5,6 +5,8 @@ services:
     restart: always
     networks:
       - zerodowndeploy
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
       interval: 30s
@@ -16,6 +18,7 @@ services:
   zerodowndeploy-green:
     <<: *app
     container_name: zerodowndeploy-green
+    restart: unless-stopped
 
   zerodowndeploy-caddy:
     container_name: zerodowndeploy-caddy

@@ -1,6 +1,5 @@
 :8083
 
 reverse_proxy {
-	to zerodowndeploy-blue:8000 zerodowndeploy-green:8000
-	lb_policy round_robin
+	to zerodowndeploy-blue:8000
 }

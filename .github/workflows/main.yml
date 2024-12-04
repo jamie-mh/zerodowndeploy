@@ -67,17 +67,6 @@ jobs:
 
       - name: Deploy
         run: |
-          prepare() {
-              export DOCKER_HOST=ssh://remote
-              echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-              # Deploy current tag
-              sed -i 's/zerodowndeploy:latest/zerodowndeploy:${{ github.ref_name }}/' compose.yaml   
-
-              docker compose pull
-              docker compose up -d --no-recreate
-          }
-
           route_traffic() {
               echo "Routing traffic to $1"
               
@@ -88,9 +77,6 @@ jobs:
                   "green")
                       upstreams='[{"dial":"zerodowndeploy-green:8000"}]'
                   ;;
-                  "bluegreen")
-                      upstreams='[{"dial":"zerodowndeploy-blue:8000"},{"dial":"zerodowndeploy-green:8000"}]'
-                  ;;
               esac
               
               docker compose exec zerodowndeploy-caddy curl \
@@ -99,11 +85,16 @@ jobs:
                   -X PATCH http://localhost:2019/config/apps/http/servers/srv0/routes/0/handle/0/upstreams
           }
 
-          restart() {
-              echo "Restarting $1"
+          up() {
+              echo "Starting $1"
+              container="zerodowndeploy-$1"
+              docker compose up -d "$container"
+          }
+          
+          down() {
+              echo "Stopping $1"
               container="zerodowndeploy-$1"
               docker compose down "$container"
-              docker compose up -d "$container"
           }
 
           wait_healthy() {
@@ -114,31 +105,41 @@ jobs:
                   curl -I --retry 30 --retry-max-time 0 --retry-all-errors --fail-with-body http://localhost:8000/health
               then
                   echo "$1 is healthy"
+                  return 1
               else
                   echo "$1 failed to start!"
-                  exit 1
+                  return 0
               fi
           }
 
-          cleanup() {
-              docker image prune -f
-          }
+          # Connect to Docker on the remote host and login using the ephemeral token
+          export DOCKER_HOST=ssh://remote
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          
+          # Deploy current tag
+          sed -i 's/zerodowndeploy:latest/zerodowndeploy:${{ github.ref_name }}/' compose.yaml   
 
-          prepare
+          # Pull the latest version and create the containers if they don't exist
+          docker compose pull
+          docker compose up -d --no-recreate zerodowndeploy-blue zerodowndeploy-caddy
 
+          up green
+          
+          if ! wait_healthy green ; then
+              down green
+              exit 1
+          fi
+  
           route_traffic green
-          sleep 10
-
-          restart blue
+          down blue
+          up blue
           wait_healthy blue
           route_traffic blue
-          sleep 10
-
-          restart green
-          wait_healthy green
-          route_traffic bluegreen
-
-          cleanup
+          
+          down green
+          
+          # Clean old images with the 'project=zerodowndeploy' label
+          docker image prune -af --filter="label=project=zerodowndeploy"
 
   clean:
     runs-on: ubuntu-latest
