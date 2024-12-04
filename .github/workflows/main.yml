@@ -57,7 +57,7 @@ jobs:
           cat >>~/.ssh/config <<END
           Host remote
               HostName ${{ secrets.DEPLOY_HOST }}
-              User deploy
+              User ${{ secrets.DEPLOY_USER }}
               IdentityFile ~/.ssh/deploy.key
               StrictHostKeyChecking no
               ControlMaster auto
