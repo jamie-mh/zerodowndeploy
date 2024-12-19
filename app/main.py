@@ -16,7 +16,7 @@ def get_ip(ip: str = Path(pattern=r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")):
     try:
         info = reader.city(ip)
     except AddressNotFoundError:
-        raise HTTPException(status_code=400, detail="Invalid IP address")
+        raise HTTPException(status_code=404, detail="IP Address not found")
 
     return {
         "latitude": info.location.latitude,
